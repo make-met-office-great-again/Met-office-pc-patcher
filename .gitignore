@@ -1,0 +1,11 @@
+# Generated/private material. Do not publish these.
+input/*.apk
+input/*.apks
+input/*.xapk
+output/
+signing/
+work/
+
+# Keep folder structure if desired.
+!input/.gitkeep
+!output/.gitkeep
