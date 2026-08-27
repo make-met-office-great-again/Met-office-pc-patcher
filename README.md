@@ -48,6 +48,55 @@ The built files are written to:
 output/
 ```
 
+## Build and install on macOS (no Windows or VM needed)
+
+The `Patch-MetOffice.ps1` glue is Windows-only, but the tools it drives (`d8`, `zipalign`, `apksigner`, `javac`, `adb`) all have native macOS builds. `patch-metoffice.sh` is a bash port that does exactly the same thing.
+
+### Prerequisites (Homebrew)
+
+```bash
+brew install openjdk                      # JDK: javac, jar, keytool
+brew install --cask android-commandlinetools
+brew install --cask android-platform-tools   # adb (only needed for -Install)
+
+# Fetch the SDK bits the patcher needs:
+yes | sdkmanager "build-tools;34.0.0" "platforms;android-34"
+```
+
+The script auto-detects the toolchain: Homebrew's `openjdk` (or any JDK via `/usr/libexec/java_home`), and the SDK from `ANDROID_SDK_ROOT` / `ANDROID_HOME`, the Homebrew command-line-tools location, or `~/Library/Android/sdk`. It works on both Apple Silicon (`/opt/homebrew`) and Intel (`/usr/local`).
+
+### Run
+
+Put your key in `API.txt` (see above), then:
+
+```bash
+chmod +x patch-metoffice.sh
+./patch-metoffice.sh                 # build only -> output/metoffice-patched.apkm
+DO_INSTALL=1 ./patch-metoffice.sh    # build and adb install-multiple to the attached phone
+```
+
+Options are environment variables (defaults shown):
+
+```bash
+ABI=arm64_v8a LANGUAGE=en DENSITY=xxhdpi \
+DEVICE_SERIAL=YOUR_SERIAL \
+INPUT_APKM=input/original.apkm OUTPUT_APKM=output/metoffice-patched.apkm \
+DO_INSTALL=1 ./patch-metoffice.sh
+```
+
+### Notes
+
+- A recent Homebrew `openjdk` (e.g. 26) prints harmless `WARNING: ... restricted method ... loadLibrary` lines from `apksigner`, and `javac` warns that `-source 8` is obsolete. Both are noise; the build and signatures are fine (`apksigner verify` passes).
+- To get a single tap-to-install APK instead of the split `output/metoffice-patched.apkm` (handy for sideloading to your own phone without a split-APK installer), merge the output with [APKEditor](https://github.com/REAndroid/APKEditor), then re-sign:
+  ```bash
+  java -jar APKEditor.jar m -i output/metoffice-patched.apkm -o merged.apk
+  "$SDK/build-tools/34.0.0/zipalign" -f 4 merged.apk merged-aligned.apk
+  "$SDK/build-tools/34.0.0/apksigner" sign \
+    --ks signing/metoffice-patcher.p12 --ks-pass pass:password \
+    --ks-key-alias metoffice_patcher --key-pass pass:password \
+    --out MetOffice-patched.apk merged-aligned.apk
+  ```
+
 ## If there are issues
 
 ### Multiple phones attached
